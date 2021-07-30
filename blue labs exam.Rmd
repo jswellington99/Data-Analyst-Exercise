@@ -1,0 +1,212 @@
+---
+title: "BlueLabs Exam Code"
+output: html_document
+---
+
+```{r, include=F}
+library(data.table)
+library(knitr)
+library(tidyverse)
+library(dplyr)
+library(bnlearn)
+library(ggplot2)
+library(aod)
+library(tidyr)
+```
+
+```{r}
+#load csvs
+county.to.media <- fread("/Users/jordanwellington/Downloads/DataAnalyst_Exam_data_2021/county_to_media_region.csv", data.table = F)
+
+data.day.sample <- fread("/Users/jordanwellington/Downloads/DataAnalyst_Exam_data_2021/data_day_sample_20180410_export.csv", data.table = F,stringsAsFactors = T)
+
+insurance.rates.tx.county <- fread("/Users/jordanwellington/Downloads/DataAnalyst_Exam_data_2021/tx_county_insurance_rates.csv", data.table = F)
+
+summary.tx.county <- fread("/Users/jordanwellington/Downloads/DataAnalyst_Exam_data_2021/tx_county_summary.csv", data.table = F)
+```
+
+```{r}
+#change variable types and create single ethnicity variable
+data.day.sample$id <- as.character(data.day.sample$id)
+data.day.sample$number_of_children <- as.factor(data.day.sample$number_of_children)
+data.day.sample <- data.day.sample %>% mutate_if(funs(all(. %in% c(0, 1))), as.factor)
+data.day.sample$insured <- ifelse(data.day.sample$health_insurance == "Uninsured", 0 , 1)
+data.day.sample$ethnicity <- ifelse(data.day.sample$ethnicity_afam == 1, "afam", ifelse(data.day.sample$ethnicity_asian == 1, "asian", ifelse(data.day.sample$ethnicity_latino == 1, "latino", ifelse(data.day.sample$ethnicity_other == 1, "other", "white"))))
+data.day.sample$ethnicity <- as.factor(data.day.sample$ethnicity)
+```
+
+```{r}
+#calculate overall insured percent
+summary(data.day.sample$health_insurance)
+percentinsured = (6069 + 2632)/(6069+2632+1299)
+percentinsured
+```
+
+```{r}
+#logistic model of insured variable by all predictors
+logmodel <- glm(insured ~ gender	+ political_party +	education_area +	age	+ income +	maritalstatus_married	+ length_of_residence	+ has_children +	number_of_children +	is_homeowner +	is_renter + level_of_education +	religion_catholic	+ religion_christian	+ donor_political_org +	donor_liberal_org +	donor_conservative_org +	donor_religious_org	+ donor_health_org +	occupation_blue_collar +	occupation_farmer	+ occupation_professional_technical +	occupation_retired +	purchases_apparel	+ purchases_book +	purchases_electronic +	purchases_boat	+ purchases_luxuryitems +	has_a_cat	+ interests_environment	+ interests_outdoorgarden	+ interests_outdoorsport +	interests_guns +	interests_golf +	interests_investing +	interests_veteranaffairs +	ethnicity, family=binomial(link='logit'),data=data.day.sample)
+summary(logmodel)
+```
+
+```{r}
+#log model of insured variable with just income
+logmodel <- glm(insured ~ income, family=binomial(link='logit'),data=data.day.sample)
+summary(logmodel)
+```
+
+```{r}
+#log model of insured with continuous variables
+logmodel <- glm(insured ~ age + income + length_of_residence, family=binomial(link='logit'),data=data.day.sample)
+summary(logmodel)
+```
+
+```{r}
+#table of insurance rates and income based on political party
+party <- data.day.sample %>% dplyr::group_by(political_party) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)), avgincome = mean(income))
+party
+```
+
+```{r}
+#table of insurance rates based on education area
+education.area <- data.day.sample %>% dplyr::group_by(education_area) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+education.area
+```
+
+```{r}
+#table of insurance rates based on whether or not have kids
+have.kids <- data.day.sample %>% dplyr::group_by(has_children) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+have.kids
+```
+
+```{r}
+#table of insurance rates based on number of kids
+number.kids <- data.day.sample %>% dplyr::group_by(number_of_children) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+number.kids
+```
+
+```{r}
+#table of insurance rates based on whether a homeowner
+homeowner <- data.day.sample %>% dplyr::group_by(is_homeowner) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+homeowner
+```
+
+```{r}
+#table of insurance rates based on whether a renter
+renter <- data.day.sample %>% dplyr::group_by(is_renter) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+renter
+```
+
+```{r}
+#table of insurance rates based on education
+education <- data.day.sample %>% dplyr::group_by(level_of_education) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+education
+```
+
+```{r}
+#table of insurance rates based on whether catholic
+catholic <- data.day.sample %>% dplyr::group_by(religion_catholic) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+catholic
+```
+
+```{r}
+#table of insurance rates based on whether have technical occupation
+tech.occ <- data.day.sample %>% dplyr::group_by(occupation_professional_technical) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)), income = mean(income))
+tech.occ
+```
+
+```{r}
+#table of insurance rates based on whether buy electronics
+electronics <- data.day.sample %>% dplyr::group_by(purchases_electronic) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+electronics
+```
+
+```{r}
+#table of insurance rates based on whether buy a boat
+boat <- data.day.sample %>% dplyr::group_by(purchases_boat) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)), income = mean(income))
+boat
+```
+
+```{r}
+#table of insurance rates based on veteran interests
+vet.interests <- data.day.sample %>% dplyr::group_by(interests_veteranaffairs) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+vet.interests
+```
+
+```{r}
+#table of insurance rates based on ethnicity
+ethnicity <- data.day.sample %>% dplyr::group_by(ethnicity) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+ethnicity
+```
+
+```{r}
+#table of education rates based on ethnicity
+ethnicity.education <- data.day.sample %>% dplyr::group_by(ethnicity) %>% summarise(high.ed = sum(level_of_education == "bach degree" | level_of_education == "post graduate"), lower.ed = sum(!(level_of_education == "bach degree" | level_of_education == "post graduate")), percent.low.ed = lower.ed/(lower.ed + high.ed))
+ethnicity.education
+```
+
+```{r}
+#table of insurance rates based on level of education specifically for latinx
+lat <- data.day.sample %>% filter(ethnicity == "latino") %>% group_by(level_of_education) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+lat
+```
+
+
+Part  2:
+
+```{r}
+#rename variable
+insurance.rates.tx.county$censuskey <- insurance.rates.tx.county$county
+```
+
+```{r}
+#merge summary and insurance rates by census key variable and select relevant variables
+county.ins <- merge(summary.tx.county, insurance.rates.tx.county, by = "censuskey") %>% select(county_name, censuskey, n_adults, pct.insurance)
+```
+
+```{r}
+#create total insured variable and change county name variable to lower case
+county.ins$total.insured <- county.ins$n_adults*county.ins$pct.insurance
+county.ins$county_name=tolower(county.ins$county_name)
+```
+
+```{r}
+#change variable name 
+county.to.media$county_name <- county.to.media$demo_county_name
+```
+
+```{r}
+#merge county insurance and county to media data sets by county name and select relevant variables
+county.ins <- merge(county.ins, county.to.media, by = "county_name") %>% select(county_name, censuskey, total.insured, tx_media_region, n_adults)
+```
+
+```{r}
+#table of uninsured percent by media region
+mediaareas <- county.ins %>% dplyr::group_by(tx_media_region) %>% summarise(popn = sum(n_adults), insured = sum(total.insured), percent.uninsured = 1-(insured/popn))
+mediaareas
+```
+
+```{r}
+#merge insurance rate and summary data by census key and select relevant variables
+#create variables to count cost of mail advertising strategy
+mail <- merge(insurance.rates.tx.county, summary.tx.county, by = "censuskey") 
+mail1 <- mail %>% select(censuskey, n_adults, pct.insurance, c14_median_income)
+mail1$ind.cost <- mail1$n_adults*.50
+mail1$recievers.uninsured <- mail1$n_adults*.75*(1- mail1$pct.insurance)
+mail1$cost <- mail1$ind.cost + 2000
+mail1$cost.per.uninsured <- mail1$cost/mail1$recievers.uninsured
+```
+
+```{r}
+#break down  data day sample by age and income to do facebook advertising analysis
+fb <- data.day.sample %>% select(age, income, insured, health_insurance)
+fb$cost <- ifelse(fb$age <= 35 & fb$income < 50, "young75" , ifelse(fb$age <= 35 & fb$income >= 50, "one" , ifelse(fb$age > 35 & fb$income < 75, "fifty" , "old75")))
+fb$cost <- as.factor(fb$cost)
+```
+
+```{r}
+#table of percent uninsured based on facebook advertising groups
+fbinsured <- fb %>% dplyr::group_by(cost) %>% summarise(insured = sum(health_insurance == "Health Insurance Plan Red" | health_insurance == "Health Insurance Plan Blue"), not.insured = sum(health_insurance == "Uninsured"), percent.insured = (insured/(insured + not.insured)))
+fbinsured
+```
+
+
